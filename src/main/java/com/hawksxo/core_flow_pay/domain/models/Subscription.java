@@ -9,7 +9,7 @@ public class Subscription {
     private SubscriptionStatus status;
     private String idempotencyKey;
     private LocalDateTime createdAt;
-    private LocalDateTime expiresdAt;
+    private LocalDateTime expiresAt;
 
     public Subscription(String id, String userId, String planId, String idempotencyKey) {
         this.id = id;
@@ -18,7 +18,7 @@ public class Subscription {
         this.status = SubscriptionStatus.PENDING;
         this.idempotencyKey = idempotencyKey;
         this.createdAt = LocalDateTime.now();
-        this.expiresdAt = this.createdAt.plusDays(30);
+        this.expiresAt = this.createdAt.plusDays(30);
     }
 
     public void activate() {
@@ -57,6 +57,6 @@ public class Subscription {
     }
 
     public LocalDateTime getExpiresAt() {
-        return expiresdAt;
+        return expiresAt;
     }
 }
