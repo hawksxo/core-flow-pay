@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import com.hawksxo.core_flow_pay.domain.exceptions.DuplicateIdempotencyKeyException;
 import com.hawksxo.core_flow_pay.domain.exceptions.SubscriptionAlreadyActiveException;
+import com.hawksxo.core_flow_pay.domain.exceptions.SubscriptionInvalidStateException;
 import com.hawksxo.core_flow_pay.domain.exceptions.SubscriptionNotFoundException;
 
 @RestControllerAdvice
@@ -48,5 +49,17 @@ public class GlobalExceptionHandler {
         );
         
         return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
-    }   
+    }
+
+    @ExceptionHandler(SubscriptionInvalidStateException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidState(SubscriptionInvalidStateException ex) {
+        ErrorResponse response = new ErrorResponse(
+            HttpStatus.CONFLICT.value(),
+            "INVALID_SUBSCRIPTION_STATE",
+            ex.getMessage(),
+            LocalDateTime.now()
+        );
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
+    }
 }

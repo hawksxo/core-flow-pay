@@ -2,6 +2,8 @@ package com.hawksxo.core_flow_pay.domain.models;
 
 import java.time.LocalDateTime;
 
+import com.hawksxo.core_flow_pay.domain.exceptions.SubscriptionInvalidStateException;
+
 public class Subscription {
     private String id;
     private String userId;
@@ -23,7 +25,7 @@ public class Subscription {
 
     public void activate() {
         if (this.status == SubscriptionStatus.CANCELLED) {
-            throw new IllegalStateException("No se puede activar una suscripción cancelada.");
+            throw new SubscriptionInvalidStateException("No se puede activar una suscripción cancelada.");
         }
         this.status = SubscriptionStatus.ACTIVE;
     }
