@@ -1,64 +1,44 @@
-# 💳 Core Flow Pay — Clean Architecture Payment System
+# 💳 Core Flow Pay — Subscription Module
 
-![Java 21](https://img.shields.io/badge/Java-21-orange.svg)
-![Spring Boot 4.x](https://img.shields.io/badge/Spring%20Boot-4.x-brightgreen.svg)
-![Architecture](https://img.shields.io/badge/Architecture-Clean%20%2F%20Hexagonal-blue.svg)
-![Build](https://img.shields.io/badge/Build-Passing-success.svg)
-
-`core-flow-pay` es un microservicio backend de procesamiento de suscripciones y pagos diseñado bajo los principios estrictos de **Clean Architecture (Hexagonal / Puertos y Adaptadores)**.
+Un microservicio backend modular desarrollado en **Java 21** y **Spring Boot 4.x**, diseñado bajo los principios de **Clean Architecture**, **Domain-Driven Design (DDD)** y **Package-by-Feature (Modulith)**.
 
 El objetivo principal de este proyecto es mantener el **Modelo de Dominio 100% puro**, completamente desacoplado de dependencias de frameworks (Spring), persistencia (JPA/Hibernate) o infraestructura HTTP.
 
 ---
 
-## 🏛️ Arquitectura & Capas
+## 🏛️ Arquitectura Modular (Package-by-Feature)
 
-El sistema sigue la **Regla de Dependencia Inviolable**: las capas externas conocen a las internas, pero el Dominio jamás conoce el mundo exterior.
+El proyecto sigue una estructura orientada a características funcionales (`subscription`), garantizando un alto grado de encapsulamiento y modularidad:
 
-```
-                  ┌────────────────────────────────────────┐
-                  │           INFRASTRUCTURE               │
-                  │  (Spring Controllers, JPA, Adapters)   │
-                  └──────────────────┬─────────────────────┘
-                                     │
-                                     ▼
-                  ┌────────────────────────────────────────┐
-                  │             APPLICATION                │
-                  │       (Use Cases, Commands/DTOs)       │
-                  └──────────────────┬─────────────────────┘
-                                     │
-                                     ▼
-                  ┌────────────────────────────────────────┐
-                  │               DOMAIN                   │
-                  │   (Entities, Ports, Domain Exceptions) │
-                  └────────────────────────────────────────┘
+```text
+com.hawksxo.core_flow_pay/
+└── subscription/
+    ├── api/                   <-- REST Controllers, DTOs & Custom Exception Handlers
+    ├── application/           <-- Casos de Uso (Orquestación & Inyección de Reloj/Clock)
+    ├── config/                <-- Inversión de Control & Configuración de Spring Beans
+    ├── domain/                <-- Entidad Pura (Instant, Factory Methods), Excepciones & Puertos
+    └── infrastructure/        <-- Adaptadores JPA & Entidades de Persistencia ORM
 ```
 
 ---
 
-## 🔁 Flujo de Desarrollo (11 Pasos)
+## 🔁 Flujo de Desarrollo del Módulo
 
-1. **`domain/model/`** — Entidad pura de negocio (`Subscription.java`).
-2. **`domain/repository/`** — Puerto/Interfaz de repositorio (`SubscriptionRepository.java`).
-3. **`domain/exception/`** — Excepciones explícitas de reglas de negocio (`SubscriptionAlreadyActiveException.java`).
-4. **`application/dto/`** — Comandos de entrada inmutables (`CreateSubscriptionCommand.java`).
-5. **`application/usecase/`** — Lógica de orquestación pura (`CreateSubscriptionUseCase.java`, `ActivateSubscriptionUseCase.java`, `CancelSubscriptionUseCase.java`).
-6. **`infrastructure/persistence/entity/`** — Entidad JPA ORM (`SubscriptionEntity.java`).
-7. **`infrastructure/persistence/repository/`** — Interfaz de Spring Data JPA (`SpringDataSubscriptionRepository.java`).
-8. **`infrastructure/persistence/adapter/`** — Adaptador de persistencia (`JpaSubscriptionRepositoryAdapter.java`).
-9. **`infrastructure/config/`** — Configuración explícita de Beans (`ApplicationConfig.java`).
-10. **`infrastructure/web/exception/`** — Manejador global de excepciones HTTP (`GlobalExceptionHandler.java`).
-11. **`infrastructure/web/controller/`** — Controlador REST API HTTP (`SubscriptionController.java`).
+1. **`subscription/domain/`** — Entidad pura de negocio (`Subscription.java`) con sellado mediante Factory Methods (`create`, `reconstruct`), timestamps en UTC (`java.time.Instant`) y validación estricta de máquina de estados.
+2. **`subscription/domain/`** — Puertos/Interfaces de repositorio (`SubscriptionRepository.java`) e Excepciones de negocio (`SubscriptionNotFoundException.java`, `SubscriptionInvalidStateException.java`, `DuplicateIdempotencyKeyException.java`).
+3. **`subscription/application/`** — Casos de uso inmutables y desacoplados (`CreateSubscriptionUseCase.java`, `ActivateSubscriptionUseCase.java`, `CancelSubscriptionUseCase.java`).
+4. **`subscription/infrastructure/persistence/`** — Adaptadores JPA e integración ORM (`SubscriptionEntity.java`, `JpaSubscriptionRepositoryAdapter.java`).
+5. **`subscription/api/`** — Endpoints de la API REST (`SubscriptionController.java`) y mapeo estandarizado de errores HTTP (`SubscriptionExceptionHandler.java`).
 
 ---
 
 ## 🚀 Endpoints de la API REST
 
-| Método | Endpoint | Descripción | Estado Exitoso |
-| :--- | :--- | :--- | :--- |
-| `POST` | `/api/v1/subscriptions` | Crear una nueva suscripción | `201 Created` |
-| `PATCH` | `/api/v1/subscriptions/{id}/activate` | Activar una suscripción existente | `200 OK` |
-| `PATCH` | `/api/v1/subscriptions/{id}/cancel` | Cancelar una suscripción existente | `200 OK` |
+| Método | Endpoint | Descripción | Header Requerido | Estado Exitoso |
+| :--- | :--- | :--- | :--- | :--- |
+| `POST` | `/api/v1/subscriptions` | Crear una nueva suscripción | `Idempotency-Key` | `201 Created` |
+| `POST` | `/api/v1/subscriptions/{id}/activate` | Activar una suscripción pendiente | — | `200 OK` |
+| `POST` | `/api/v1/subscriptions/{id}/cancel` | Cancelar una suscripción existente | — | `200 OK` |
 
 ---
 
@@ -66,15 +46,15 @@ El sistema sigue la **Regla de Dependencia Inviolable**: las capas externas cono
 
 * **Java 21 (LTS)**
 * **Spring Boot 4.x** (Web, Data JPA)
-* **H2 Database** (In-Memory para desarrollo y pruebas)
-* **JUnit 5 & Mockito** (Pruebas unitarias de casos de uso)
+* **H2 Database** (Base de datos In-Memory para desarrollo y pruebas)
+* **JUnit 5, Mockito & MockMvc** (Suite completa de pruebas unitarias e integración)
 * **Maven Wrapper**
 
 ---
 
 ## 💻 Pruebas & Ejecución
 
-### Ejecutar las pruebas unitarias:
+### Ejecutar la suite completa de pruebas:
 ```bash
 ./mvnw clean test
 ```
