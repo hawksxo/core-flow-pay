@@ -1,11 +1,10 @@
 package com.hawksxo.core_flow_pay.subscription.infrastructure.persistence;
 
+import com.hawksxo.core_flow_pay.subscription.domain.DuplicateIdempotencyKeyException;
 import com.hawksxo.core_flow_pay.subscription.domain.Subscription;
 import com.hawksxo.core_flow_pay.subscription.domain.SubscriptionRepository;
 import com.hawksxo.core_flow_pay.subscription.domain.SubscriptionStatus;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.transaction.annotation.Transactional;
-import java.time.Instant;
 import java.util.Optional;
 
 public class JpaSubscriptionRepositoryAdapter implements SubscriptionRepository {
@@ -16,19 +15,13 @@ public class JpaSubscriptionRepositoryAdapter implements SubscriptionRepository 
     }
 
     @Override
-    @Transactional
     public Subscription save(Subscription subscription) {
         SubscriptionEntity entity = toEntity(subscription);
         try {
             SubscriptionEntity saved = jpaRepository.saveAndFlush(entity);
             return toDomain(saved);
         } catch (DataIntegrityViolationException e) {
-            if (e.getCause() instanceof org.hibernate.exception.ConstraintViolationException cve
-                    && cve.getConstraintName() != null
-                    && cve.getConstraintName().toLowerCase().contains("idempotency_key")) {
-                throw new com.hawksxo.core_flow_pay.subscription.domain.DuplicateIdempotencyKeyException(subscription.getIdempotencyKey());
-            }
-            throw e;
+            throw new DuplicateIdempotencyKeyException(subscription.getIdempotencyKey());
         }
     }
 
@@ -51,6 +44,7 @@ public class JpaSubscriptionRepositoryAdapter implements SubscriptionRepository 
         return new SubscriptionEntity(
             domain.getId(),
             domain.getUserId(),
+            domain.getPlanId(),
             domain.getStatus(),
             domain.getIdempotencyKey(),
             domain.getCreatedAt(),
@@ -62,6 +56,7 @@ public class JpaSubscriptionRepositoryAdapter implements SubscriptionRepository 
         return Subscription.reconstruct(
             entity.getId(),
             entity.getUserId(),
+            entity.getPlanId(),
             entity.getStatus(),
             entity.getIdempotencyKey(),
             entity.getCreatedAt(),

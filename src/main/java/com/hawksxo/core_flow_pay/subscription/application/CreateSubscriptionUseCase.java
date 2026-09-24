@@ -1,6 +1,8 @@
 package com.hawksxo.core_flow_pay.subscription.application;
 
+import com.hawksxo.core_flow_pay.subscription.domain.DuplicateIdempotencyKeyException;
 import com.hawksxo.core_flow_pay.subscription.domain.Subscription;
+import com.hawksxo.core_flow_pay.subscription.domain.SubscriptionAlreadyActiveException;
 import com.hawksxo.core_flow_pay.subscription.domain.SubscriptionRepository;
 import com.hawksxo.core_flow_pay.subscription.domain.SubscriptionStatus;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,18 +23,18 @@ public class CreateSubscriptionUseCase {
         Instant now = clock.instant();
 
         if (repository.findByIdempotencyKey(command.idempotencyKey()).isPresent()) {
-            throw new com.hawksxo.core_flow_pay.subscription.domain.DuplicateIdempotencyKeyException(command.idempotencyKey());
+            throw new DuplicateIdempotencyKeyException(command.idempotencyKey());
         }
 
         if (repository.existsByUserIdAndStatus(command.userId(), SubscriptionStatus.ACTIVE)) {
-            throw new com.hawksxo.core_flow_pay.subscription.domain.SubscriptionAlreadyActiveException(command.userId());
+            throw new SubscriptionAlreadyActiveException(command.userId());
         }
 
-        Subscription subscription = Subscription.create(command.userId(), command.idempotencyKey(), now);
+        Subscription subscription = Subscription.create(command.userId(), command.planId(), command.idempotencyKey(), now);
         Subscription saved = repository.save(subscription);
-        return new SubscriptionResult(saved.getId(), saved.getUserId(), saved.getStatus(), saved.getIdempotencyKey(), saved.getCreatedAt(), saved.getExpiredAt());
+        return new SubscriptionResult(saved.getId(), saved.getUserId(), saved.getPlanId(), saved.getStatus(), saved.getIdempotencyKey(), saved.getCreatedAt(), saved.getExpiredAt());
     }
 
-    public record SubscriptionResult(String id, String userId, SubscriptionStatus status, String idempotencyKey, Instant createdAt, Instant expiredAt) {
+    public record SubscriptionResult(String id, String userId, String planId, SubscriptionStatus status, String idempotencyKey, Instant createdAt, Instant expiredAt) {
     }
 }

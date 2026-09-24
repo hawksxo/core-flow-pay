@@ -3,6 +3,7 @@ package com.hawksxo.core_flow_pay.subscription.api;
 import com.hawksxo.core_flow_pay.subscription.domain.DuplicateIdempotencyKeyException;
 import com.hawksxo.core_flow_pay.subscription.domain.InvalidSubscriptionStateTransitionException;
 import com.hawksxo.core_flow_pay.subscription.domain.SubscriptionAlreadyActiveException;
+import com.hawksxo.core_flow_pay.subscription.domain.SubscriptionInvalidStateException;
 import com.hawksxo.core_flow_pay.subscription.domain.SubscriptionNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
@@ -13,8 +14,6 @@ import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import java.time.Instant;
-import java.util.LinkedHashMap;
-import java.util.Map;
 
 @RestControllerAdvice(basePackages = "com.hawksxo.core_flow_pay.subscription.api")
 public class SubscriptionExceptionHandler {
@@ -23,7 +22,7 @@ public class SubscriptionExceptionHandler {
         return buildError(HttpStatus.NOT_FOUND, "Subscription Not Found", ex.getMessage(), request);
     }
 
-    @ExceptionHandler({DuplicateIdempotencyKeyException.class, SubscriptionAlreadyActiveException.class, InvalidSubscriptionStateTransitionException.class})
+    @ExceptionHandler({DuplicateIdempotencyKeyException.class, SubscriptionAlreadyActiveException.class, InvalidSubscriptionStateTransitionException.class, SubscriptionInvalidStateException.class})
     public ResponseEntity<ErrorResponse> handleConflict(RuntimeException ex, HttpServletRequest request) {
         return buildError(HttpStatus.CONFLICT, "Conflict", ex.getMessage(), request);
     }

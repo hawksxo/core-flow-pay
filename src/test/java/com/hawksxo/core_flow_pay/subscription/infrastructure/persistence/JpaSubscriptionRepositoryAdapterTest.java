@@ -1,5 +1,6 @@
 package com.hawksxo.core_flow_pay.subscription.infrastructure.persistence;
 
+import com.hawksxo.core_flow_pay.subscription.domain.DuplicateIdempotencyKeyException;
 import com.hawksxo.core_flow_pay.subscription.domain.Subscription;
 import com.hawksxo.core_flow_pay.subscription.domain.SubscriptionStatus;
 import org.junit.jupiter.api.BeforeEach;
@@ -25,7 +26,7 @@ class JpaSubscriptionRepositoryAdapterTest {
 
     @Test
     void saveAndFindById_roundTrip() {
-        Subscription sub = Subscription.create("user-1", "idem-1", Instant.parse("2026-01-01T00:00:00Z"));
+        Subscription sub = Subscription.create("user-1", "plan-1", "idem-1", Instant.parse("2026-01-01T00:00:00Z"));
         Subscription saved = adapter.save(sub);
 
         Optional<Subscription> found = adapter.findById(saved.getId());
@@ -33,13 +34,14 @@ class JpaSubscriptionRepositoryAdapterTest {
         assertTrue(found.isPresent());
         assertEquals(saved.getId(), found.get().getId());
         assertEquals("user-1", found.get().getUserId());
+        assertEquals("plan-1", found.get().getPlanId());
         assertEquals(SubscriptionStatus.PENDING, found.get().getStatus());
         assertEquals("idem-1", found.get().getIdempotencyKey());
     }
 
     @Test
     void findByIdempotencyKey_returnsSubscription() {
-        Subscription sub = Subscription.create("user-1", "idem-unique", Instant.parse("2026-01-01T00:00:00Z"));
+        Subscription sub = Subscription.create("user-1", "plan-1", "idem-unique", Instant.parse("2026-01-01T00:00:00Z"));
         adapter.save(sub);
 
         Optional<Subscription> found = adapter.findByIdempotencyKey("idem-unique");
@@ -50,7 +52,7 @@ class JpaSubscriptionRepositoryAdapterTest {
 
     @Test
     void existsByUserIdAndStatus_returnsTrueWhenActive() {
-        Subscription sub = Subscription.create("user-1", "idem-1", Instant.parse("2026-01-01T00:00:00Z"));
+        Subscription sub = Subscription.create("user-1", "plan-1", "idem-1", Instant.parse("2026-01-01T00:00:00Z"));
         sub.activate(Instant.parse("2026-01-01T00:00:00Z"));
         adapter.save(sub);
 
@@ -61,7 +63,7 @@ class JpaSubscriptionRepositoryAdapterTest {
 
     @Test
     void existsByUserIdAndStatus_returnsFalseWhenNotActive() {
-        Subscription sub = Subscription.create("user-1", "idem-1", Instant.parse("2026-01-01T00:00:00Z"));
+        Subscription sub = Subscription.create("user-1", "plan-1", "idem-1", Instant.parse("2026-01-01T00:00:00Z"));
         adapter.save(sub);
 
         boolean exists = adapter.existsByUserIdAndStatus("user-1", SubscriptionStatus.ACTIVE);
@@ -71,12 +73,11 @@ class JpaSubscriptionRepositoryAdapterTest {
 
     @Test
     void save_duplicateIdempotencyKey_throwsDomainException() {
-        Subscription sub1 = Subscription.create("user-1", "same-key", Instant.parse("2026-01-01T00:00:00Z"));
+        Subscription sub1 = Subscription.create("user-1", "plan-1", "same-key", Instant.parse("2026-01-01T00:00:00Z"));
         adapter.save(sub1);
 
-        Subscription sub2 = Subscription.create("user-2", "same-key", Instant.parse("2026-01-01T00:00:00Z"));
+        Subscription sub2 = Subscription.create("user-2", "plan-1", "same-key", Instant.parse("2026-01-01T00:00:00Z"));
 
-        assertThrows(com.hawksxo.core_flow_pay.subscription.domain.DuplicateIdempotencyKeyException.class,
-            () -> adapter.save(sub2));
+        assertThrows(DuplicateIdempotencyKeyException.class, () -> adapter.save(sub2));
     }
 }

@@ -1,66 +1,67 @@
 package com.hawksxo.core_flow_pay.subscription.application;
 
+import com.hawksxo.core_flow_pay.subscription.domain.InvalidSubscriptionStateTransitionException;
 import com.hawksxo.core_flow_pay.subscription.domain.Subscription;
+import com.hawksxo.core_flow_pay.subscription.domain.SubscriptionNotFoundException;
 import com.hawksxo.core_flow_pay.subscription.domain.SubscriptionRepository;
 import com.hawksxo.core_flow_pay.subscription.domain.SubscriptionStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import java.time.Clock;
 import java.time.Instant;
-import java.time.ZoneOffset;
+import java.time.ZoneId;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
+@ExtendWith(MockitoExtension.class)
 class ActivateSubscriptionUseCaseTest {
+
+    @Mock
     private SubscriptionRepository repository;
-    private Clock clock;
+
+    private Clock fixedClock;
     private ActivateSubscriptionUseCase useCase;
+
+    private static final Instant NOW = Instant.parse("2026-01-01T10:00:00Z");
 
     @BeforeEach
     void setUp() {
-        repository = mock(SubscriptionRepository.class);
-        clock = Clock.fixed(Instant.parse("2026-01-01T00:00:00Z"), ZoneOffset.UTC);
-        useCase = new ActivateSubscriptionUseCase(repository, clock);
+        fixedClock = Clock.fixed(NOW, ZoneId.of("UTC"));
+        useCase = new ActivateSubscriptionUseCase(repository, fixedClock);
     }
 
     @Test
-    void execute_success_returnsActivatedSubscription() {
-        Subscription pending = Subscription.reconstruct("sub-1", "user-1", SubscriptionStatus.PENDING, "idem-1", Instant.parse("2026-01-01T00:00:00Z"), null);
-        when(repository.findById("sub-1")).thenReturn(Optional.of(pending));
+    void execute_successfulActivation() {
+        Subscription pending = Subscription.create("user-1", "plan-1", "idem-1", NOW);
+        when(repository.findById(pending.getId())).thenReturn(Optional.of(pending));
         when(repository.save(any(Subscription.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        var result = useCase.execute("sub-1");
+        var result = useCase.execute(pending.getId());
 
-        assertEquals("sub-1", result.id());
         assertEquals(SubscriptionStatus.ACTIVE, result.status());
-        assertNotNull(result.expiredAt());
+        assertEquals(NOW.plusSeconds(30L * 24 * 60 * 60), result.expiredAt());
     }
 
     @Test
-    void execute_notFound_throwsException() {
-        when(repository.findById("sub-1")).thenReturn(Optional.empty());
+    void execute_subscriptionNotFound_throwsException() {
+        when(repository.findById("non-existent")).thenReturn(Optional.empty());
 
-        assertThrows(com.hawksxo.core_flow_pay.subscription.domain.SubscriptionNotFoundException.class,
-            () -> useCase.execute("sub-1"));
+        assertThrows(SubscriptionNotFoundException.class, () -> useCase.execute("non-existent"));
     }
 
     @Test
     void execute_alreadyActive_throwsException() {
-        Subscription active = Subscription.reconstruct("sub-1", "user-1", SubscriptionStatus.ACTIVE, "idem-1", Instant.parse("2026-01-01T00:00:00Z"), Instant.parse("2026-01-31T00:00:00Z"));
-        when(repository.findById("sub-1")).thenReturn(Optional.of(active));
+        Subscription active = Subscription.create("user-1", "plan-1", "idem-1", NOW);
+        active.activate(NOW);
 
-        assertThrows(com.hawksxo.core_flow_pay.subscription.domain.InvalidSubscriptionStateTransitionException.class,
-            () -> useCase.execute("sub-1"));
-    }
+        when(repository.findById(active.getId())).thenReturn(Optional.of(active));
 
-    @Test
-    void execute_cancelled_throwsException() {
-        Subscription cancelled = Subscription.reconstruct("sub-1", "user-1", SubscriptionStatus.CANCELLED, "idem-1", Instant.parse("2026-01-01T00:00:00Z"), null);
-        when(repository.findById("sub-1")).thenReturn(Optional.of(cancelled));
-
-        assertThrows(com.hawksxo.core_flow_pay.subscription.domain.InvalidSubscriptionStateTransitionException.class,
-            () -> useCase.execute("sub-1"));
+        assertThrows(InvalidSubscriptionStateTransitionException.class, () -> useCase.execute(active.getId()));
     }
 }

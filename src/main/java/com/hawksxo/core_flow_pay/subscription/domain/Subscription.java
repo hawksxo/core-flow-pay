@@ -7,24 +7,27 @@ import java.util.UUID;
 public class Subscription {
     private final String id;
     private final String userId;
+    private final String planId;
     private SubscriptionStatus status;
     private final String idempotencyKey;
     private final Instant createdAt;
     private Instant expiredAt;
 
-    private Subscription(String id, String userId, SubscriptionStatus status, String idempotencyKey, Instant createdAt, Instant expiredAt) {
+    private Subscription(String id, String userId, String planId, SubscriptionStatus status, String idempotencyKey, Instant createdAt, Instant expiredAt) {
         this.id = id;
         this.userId = userId;
+        this.planId = planId;
         this.status = status;
         this.idempotencyKey = idempotencyKey;
         this.createdAt = createdAt;
         this.expiredAt = expiredAt;
     }
 
-    public static Subscription create(String userId, String idempotencyKey, Instant now) {
+    public static Subscription create(String userId, String planId, String idempotencyKey, Instant now) {
         return new Subscription(
             UUID.randomUUID().toString(),
             userId,
+            planId,
             SubscriptionStatus.PENDING,
             idempotencyKey,
             now,
@@ -32,16 +35,19 @@ public class Subscription {
         );
     }
 
-    public static Subscription reconstruct(String id, String userId, SubscriptionStatus status, String idempotencyKey, Instant createdAt, Instant expiredAt) {
-        return new Subscription(id, userId, status, idempotencyKey, createdAt, expiredAt);
+    public static Subscription reconstruct(String id, String userId, String planId, SubscriptionStatus status, String idempotencyKey, Instant createdAt, Instant expiredAt) {
+        return new Subscription(id, userId, planId, status, idempotencyKey, createdAt, expiredAt);
     }
 
     public void activate(Instant now) {
+        if (this.status == SubscriptionStatus.CANCELLED) {
+            throw new SubscriptionInvalidStateException("No se puede activar una suscripción cancelada.");
+        }
         if (this.status != SubscriptionStatus.PENDING) {
             throw new InvalidSubscriptionStateTransitionException(this.id, this.status, SubscriptionStatus.ACTIVE);
         }
         this.status = SubscriptionStatus.ACTIVE;
-        this.expiredAt = now.plusSeconds(30 * 24 * 60 * 60);
+        this.expiredAt = now.plusSeconds(30L * 24 * 60 * 60);
     }
 
     public void cancel() {
@@ -67,6 +73,10 @@ public class Subscription {
 
     public String getUserId() {
         return userId;
+    }
+
+    public String getPlanId() {
+        return planId;
     }
 
     public SubscriptionStatus getStatus() {

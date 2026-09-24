@@ -20,6 +20,9 @@ public class SubscriptionEntity {
     @Column(name = "user_id", nullable = false, length = 36)
     private String userId;
 
+    @Column(name = "plan_id", nullable = false, length = 36)
+    private String planId;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
     private SubscriptionStatus status;
@@ -35,9 +38,10 @@ public class SubscriptionEntity {
 
     protected SubscriptionEntity() {}
 
-    public SubscriptionEntity(String id, String userId, SubscriptionStatus status, String idempotencyKey, Instant createdAt, Instant expiredAt) {
+    public SubscriptionEntity(String id, String userId, String planId, SubscriptionStatus status, String idempotencyKey, Instant createdAt, Instant expiredAt) {
         this.id = id;
         this.userId = userId;
+        this.planId = planId;
         this.status = status;
         this.idempotencyKey = idempotencyKey;
         this.createdAt = createdAt;
@@ -48,6 +52,8 @@ public class SubscriptionEntity {
     public void setId(String id) { this.id = id; }
     public String getUserId() { return userId; }
     public void setUserId(String userId) { this.userId = userId; }
+    public String getPlanId() { return planId; }
+    public void setPlanId(String planId) { this.planId = planId; }
     public SubscriptionStatus getStatus() { return status; }
     public void setStatus(SubscriptionStatus status) { this.status = status; }
     public String getIdempotencyKey() { return idempotencyKey; }
